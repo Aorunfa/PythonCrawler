@@ -195,7 +195,7 @@ class Craper(object):
         if len(audio_path) != 0:
             fv = self._concate_target(video_path)
             fa = self._concate_target(audio_path)
-            fv.set_audio(fa)
+            fv = fv.set_audio(fa)
             # 存储
         else:
             fv = self._concate_target(video_path)  # 只拼接视频
