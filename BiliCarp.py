@@ -24,7 +24,6 @@ from moviepy.editor import VideoFileClip, VideoClip, concatenate_videoclips, Aud
 # TODO 音乐和视频合并分辨率下降问题
 # TODO 增加多线程提效
 # TODO 增加视频信息写入检索数据库
-
 class Craper(object):
     """
     B站视频爬取
