@@ -21,7 +21,10 @@ from moviepy.editor import VideoFileClip, VideoClip, concatenate_videoclips, Aud
 
 # TODO 一个文件夹存储100个视频 提高检索效率
 # TODO 增加异常捕捉机制
-# TODO 音乐和视频合并没有声音
+# TODO 音乐和视频合并分辨率下降问题
+# TODO 增加多线程提效
+# TODO 增加视频信息写入检索数据库
+
 class Craper(object):
     """
     B站视频爬取
