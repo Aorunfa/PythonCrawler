@@ -6,6 +6,7 @@ coding:utf-8
 @versionl: 3.
 '''
 import time
+from sql import SqlUtils
 from utils import _del_temporary, _str_clean, get_user_angent
 import requests
 from bs4 import BeautifulSoup
@@ -20,10 +21,12 @@ import imageio
 from moviepy.editor import VideoFileClip, VideoClip, concatenate_videoclips, AudioClip,AudioFileClip,concatenate_audioclips
 
 # TODO 一个文件夹存储100个视频 提高检索效率
-# TODO 增加异常捕捉机制
-# TODO 音乐和视频合并分辨率下降问题
+# TODO 增加异常捕捉机制 -- v2.0进行
+# TODO 音乐和视频合并分辨率下降问题 -- 暂时无法解决
 # TODO 增加多线程提效
 # TODO 增加视频信息写入检索数据库
+
+
 class Craper(object):
     """
     B站视频爬取
@@ -39,11 +42,18 @@ class Craper(object):
         self.concate_path = r'./concate'
         if not os.path.exists(self.concate_path):
             os.mkdir(self.concate_path)  # 用于视频合成临时存储
-
+        # sql工具
+        self.mysql_config = {"host": "localhost",
+                             "port": 3306,
+                             "database": "aocf",
+                             "charset": "utf8",
+                             "user": "root",
+                             "passwd": "w0haizai"}
+        self.mysql = SqlUtils(self.mysql_config)
     def web_parse(self):
         """
         获取页面所有视频的标题和网址
-        :return:[(tittle, links), (), ...]
+        :return: [(tittle, link), (tittle, link), ...]
         """
         if self.webpage.status_code == 200:
             soup = BeautifulSoup(self.webpage.text, 'lxml')
@@ -54,7 +64,6 @@ class Craper(object):
                     links.append(link.get('href'))
                     titles.append(t)
             assert len(links) > 0, f'无法从网址解析出视频链接, url={self.url}'
-            # 进一步清洗
             tls = list(zip(titles, links))
             self.tls = [(t, r'https://' + x[2:]) for (t, x) in tls if x[2:].startswith('www')]  # //www.***
         else:
@@ -85,7 +94,7 @@ class Craper(object):
     def run(self):
         for i, (t, play_link) in enumerate(self.tls):  # 遍历所有播放链接
             if (i + 1) // self.agent_iteration == 0:
-                self.headers['User-Agent'] = get_user_angent()  # 每轮迭代更新代理
+                self.headers['User-Agent'] = get_user_angent()  # 更新代理
 
             self.get_per_video(play_link)
 
@@ -137,13 +146,13 @@ class Craper(object):
         if connect_video:
             if len(video_ls) >= 2:
                 """
-                多段视频:
-                一个清晰度下或存在多段拼接
+                多段视频: 一个清晰度存在多个链接或存在多段拼接
                 """
                 decode_ = [(i, av.open(io.BytesIO(x.content)))
                            for i, x in enumerate(video_ls)]
                 decode_ = sorted(decode_, key=lambda x: x[1].size)  # 按size升序
-                # 使用字典进行过滤
+
+                # 使用字典进行过滤，保留唯一序号
                 idx_select = {}
                 for d in decode_:
                     idx_select[d[1].duration] = d[0]  # 时长: 序号
@@ -155,7 +164,7 @@ class Craper(object):
                     f.write(video.content)
                 f.close()
         else:
-            print('视频下载失败，无法获取视频链接')
+            print('视频下载失败，无法获取视频视频链接')
 
         if connect_audio and connect_audio:
             if len(audio_ls) >= 2:
@@ -165,11 +174,10 @@ class Craper(object):
                 """
                 decode_ = [(i, av.open(io.BytesIO(x.content)))
                            for i, x in enumerate(audio_ls)]
-                decode_ = sorted(decode_, key=lambda x: x[1].size)  # 按size升序
-                # 使用字典进行过滤
+                decode_ = sorted(decode_, key=lambda x: x[1].size)
                 idx_select = {}
                 for d in decode_:
-                    idx_select[d[1].duration] = d[0]  # 时长: 序号
+                    idx_select[d[1].duration] = d[0]
                 audio_ls = [audio_ls[x] for x in idx_select.values()]
             for i, audio in enumerate(audio_ls):
                 p = self._make_path(f'{i}_audio_{title}.mp3')
@@ -198,10 +206,12 @@ class Craper(object):
             fv = self._concate_target(video_path)
             fa = self._concate_target(audio_path)
             fv = fv.set_audio(fa)
-            # 存储
         else:
             fv = self._concate_target(video_path)  # 只拼接视频
-        fv.write_videofile(f"{self._make_path(title + '.mp4', 'save')}")
+        fv.write_videofile(f"{self._make_path(title + '.mp4', 'save')}",
+                           codec='libx264',
+
+                           )
         fv.close()
 
         # 清空临时缓存

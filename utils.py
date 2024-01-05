@@ -8,8 +8,8 @@ coding:utf-8
 
 import random
 import os
-import subprocess
 random.seed(2013)
+
 def get_user_angent():
     """
     随机获取代理设备
@@ -71,61 +71,9 @@ def _str_clean(s):
             r += i
     return r
 
-def _del_temporary(file_path): # 删除给定列表文件
+def _del_temporary(file_path):
+    # 删除给定列表文件
     if len(file_path) == 0:
         return
     for fp in file_path:
         os.remove(fp)
-from moviepy.editor import VideoFileClip, VideoClip, concatenate_videoclips, AudioClip,AudioFileClip,concatenate_audioclips
-
-"""
-测试视频和音乐合并是否符合预期
-"""
-# video_path = [r'./concate/0/0video_我还是觉得2D动漫更好看_哔哩哔哩_bilibili.mp4']
-# audio_path = ['./concate/0/0_audio_我还是觉得2D动漫更好看_哔哩哔哩_bilibili.mp3']
-video_path = [r'E:\00MyGit\PythonCrawler\concate\0\0video_我还是觉得2D动漫更好看_哔哩哔哩_bilibili.mp4']
-audio_path = [r'E:\00MyGit\PythonCrawler\concate\0\0_audio_我还是觉得2D动漫更好看_哔哩哔哩_bilibili.mp3']
-
-# def _concate_target(file_path):
-#     files = []
-#     if file_path[0].endswith('mp4'):
-#         for fp in file_path:
-#             files.append(VideoFileClip(fp))
-#         files = concatenate_videoclips(files)
-#     else:  # 合并音频
-#         for fp in file_path:
-#             files.append(AudioFileClip(fp))
-#         files = concatenate_audioclips(files)
-#     return files
-#
-#
-# fv = _concate_target(video_path)
-# fa = _concate_target(audio_path)
-# fv = fv.set_audio(fa)
-# # 存储
-# fv.write_videofile(f"concate/0/concate_debug.mp4",)
-
-# 输出文件路径
-import ffmpeg
-output_path = r'E:\00MyGit\PythonCrawler\concate\0/concate_debug.mp4'
-# 构建FFmpeg命令
-# ffmpeg_command = [
-#     'ffmpeg',
-#     '-i', ','.join(video_path),  # 视频输入
-#     '-i', ','.join(audio_path),  # 音频输入
-#     '-c:v', 'copy',                # 视频编码使用复制，不重新编码
-#     '-c:a', 'aac',                 # 音频编码使用AAC
-#     '-strict', 'experimental',
-#     output_path
-# ]
-
-ffmpeg_command = [
-    'ffmpeg',
-    '-i', video_path[0],  # 视频输入
-    '-i', audio_path[0],  # 音频输入
-    '-c:v', 'copy',                # 视频编码使用复制，不重新编码
-    '-c:a', 'aac',                 # 音频编码使用AAC
-    '-strict', 'experimental',
-    output_path]
-# 执行FFmpeg命令
-subprocess.run(ffmpeg_command)
