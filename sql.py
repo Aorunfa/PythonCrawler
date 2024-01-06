@@ -7,8 +7,10 @@ coding:utf-8
 '''
 import pandas as pd
 import pymysql
+import sqlalchemy
 from sqlalchemy import create_engine
-
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 class SqlUtils(object):
     """
@@ -17,23 +19,26 @@ class SqlUtils(object):
 
     def __init__(self, config, dtype_dict=None):
         self.engine = create_engine(self._config_parse(**config))
+        self.session = sessionmaker(bind=self.engine)()
+        self.session.begin()
+
 
         if dtype_dict is None:
             self.dtype_dict = {'object': 'VARCHAR(20)',
                                'int64': 'INT',
                                'int32': 'INT',
                                'int16': 'SMALLINT',
-                               'float16': 'NUMERIC(10, 4)',  # 整数10位 小数2位
-                               'float32': 'NUMERIC(10, 4)',
-                               'float64': 'NUMERIC(10, 4)',
+                               'float16': 'NUMERIC(20, 5)',  # 总共10位 小数5位
+                               'float32': 'NUMERIC(20, 5)',
+                               'float64': 'NUMERIC(20, 5)',
                                'datetime64[ns]': 'DATETIME',
                                'bool': 'BOOLEAN',
                               }
         else:
             self.dtype_dict = dtype_dict
 
-    def _config_parse(self, user, passwd, localhost, database):
-        return rf"mysql+pymysql://{user}:{passwd}@{localhost}/{database}"
+    def _config_parse(self, user, passwd, host, port, database, charset):
+        return rf"mysql+pymysql://{user}:{passwd}@{host}:{port}/{database}?charset={charset}"
 
     def _datatype_parse(self, df: pd.DataFrame, text_col=None):
         """
@@ -56,6 +61,12 @@ class SqlUtils(object):
         自动检索pd.Dataframe数据列与格式创建表格
         分区按照范围分区
         """
+        if self.find_table(table_name):
+            if fixed_drop:
+                self.del_table(table_name)
+            else:
+                return
+
         datatype_dict = self._datatype_parse(df, text_col)
         sql_datatype, sql_key, sql_idx, sql_ukey, sql_partition = '', '', '', '', ''
         # data type
@@ -90,11 +101,7 @@ class SqlUtils(object):
         sql = f'CREATE TABLE {table_name} ({sql_col_datatype}{sql_key}{sql_ukey}{sql_idx}){sql_partition}'
 
         # run
-        if not self.find_table(table_name):
-            self.run_sql(sql)
-        elif fixed_drop:
-            self.del_table(table_name)
-            self.run_sql(sql)
+        self.run_sql(sql)
 
     def put_data(self, df: pd.DataFrame, table_name, mode='append'):
         """
@@ -104,8 +111,6 @@ class SqlUtils(object):
         :param mode: append or replace
         :return:
         """
-
-
         df.to_sql(name=table_name,
                   con=self.engine,
                   if_exists=mode,
@@ -117,7 +122,9 @@ class SqlUtils(object):
         :param sql: 查询语句
         :return:
         """
-        return pd.read_sql_query(sql, self.con)
+        with self.engine.connect().execution_options(autocommit=True) as conn:
+            df = pd.read_sql(text(sql), conn)
+        return df
 
     def del_table(self, table_name):
         self.run_sql(f'DROP TABLE {table_name}')
@@ -127,15 +134,15 @@ class SqlUtils(object):
         return self.run_sql(sql)
 
     def run_sql(self, sql):
+        sql = text(sql)
         try:
-            rstl = self.engine.execute(sql)
-
-            return rstl
+            result = self.session.execute(sql)
+            self.session.commit()
+            return result
         except Exception as e:
             print(f'sql语句运行失败, sql={sql}')
             print(e)
-            # 回滚
-            # self.con.rollback()
+            self.session.rollback()
             return None
 
     def __del__(self):
@@ -143,8 +150,7 @@ class SqlUtils(object):
         关闭游标和连接
         :return:
         """
-        self.cursor.close()
-        self.con.close()
+        self.session.close()
 
 if __name__ == '__main__':
     config = {
@@ -171,7 +177,10 @@ if __name__ == '__main__':
     #                   text_col=['p'], pkeys=['name', 'bit'], ukeys=['good', 'bit'],
     #                   idxs=['w', 'timestamp'], pid='bit')
     # 写入
-    mysql.put_data(df, 'test', mode='replace')
+    # mysql.put_data(df, 'test', mode='append')
     # 查询
-    # r'mysql+pymysql://root:w0haizai@localhost/aocf'
+    ddf = mysql.get_data('select * from test')
+    print(ddf)
     # 删除
+
+    del mysql
