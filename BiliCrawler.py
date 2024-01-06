@@ -20,10 +20,10 @@ import io
 from moviepy.editor import VideoFileClip, VideoClip, concatenate_videoclips, AudioClip,AudioFileClip,concatenate_audioclips
 
 # TODO 一个文件夹存储100个视频 提高检索效率
-# TODO 增加异常捕捉机制 -- v2.0进行
+# TODO 增加异常捕捉机制 -- 50%
 # TODO 音乐和视频合并分辨率下降问题 -- 暂时无法解决
-# TODO 增加多线程提效
-# TODO 增加视频信息写入检索数据库
+# TODO 增加多线程提效 -- v2.0
+# TODO 增加视频信息写入检索数据库 100%
 
 
 class PerVideoCrawler(object):
@@ -113,7 +113,6 @@ class PerVideoCrawler(object):
             fv = fv.set_audio(fa)
         else:
             fv = self._concate(video_path)
-        # TODO 路径 大小 时长
         save_path = f"{self._make_path(title + '.mp4', 'save')}"
         fv.write_videofile(save_path,
                            codec='libx264',
@@ -279,7 +278,7 @@ class DownloadFromWebpage(PerVideoCrawler):
             tls = list(zip(titles, links))
             self.tls = [(t, r'https://' + x[2:]) for (t, x) in tls if x[2:].startswith('www')]  # //www.***
             self.log(f'解析网页{self.url}')
-            self.log(f'获取网址信息: {str(self.tls)}')
+            self.log(f'获取网址信息: 链接数{len(self.tls)} {str(self.tls)}')
         else:
             info = f'网页请求失败， 失败码{self.webpage.status_code}'
             self.log(info)
@@ -318,11 +317,14 @@ class DownloadFromWebpage(PerVideoCrawler):
             if creat_tabl:
                 self.sqltool.creat_table(table_name=self.sql_tablename,
                                          df=df_sql,
-                                         text_col=['title', 'url'])
+                                         text_col=['title', 'url', 'save_path'],
+                                         fixed_drop=True)
+                creat_tabl = 0
             if df_sql.shape[0] > 100:
                 self.sqltool.put_data(df_sql, table_name=self.sql_tablename)
                 df_sql = pd.DataFrame()
         self.sqltool.put_data(df_sql, table_name=self.sql_tablename)
+        del self.sqltool
 
 
 if __name__ == '__main__':

@@ -56,10 +56,23 @@ class SqlUtils(object):
         return datatype_dict
 
     def creat_table(self, table_name: str, df: pd.DataFrame, text_col=None, pkeys=None,
-                    ukeys=None, idxs=None, pid=None, pnums=4, fixed_drop=True):
+                    ukeys=None, idxs=None, pid=None, pnums=4, fixed_drop=False):
         """
         自动检索pd.Dataframe数据列与格式创建表格
         分区按照范围分区
+        mysql标准示范：
+        CREATE TABLE employees (
+                                id INT ,
+                                first_name VARCHAR(50) NOT NULL,
+                                last_name VARCHAR(50) NOT NULL,
+                                agea INT  NOT NULL,
+                                salary DECIMAL(10, 2),
+                                department_id INT,
+                                hire_date DATE,
+                                PRIMARY key (id, agea, first_name),
+                                unique key aa (first_name, agea), # 唯一键必须包含分区字段
+                                INDEX idx (first_name, last_name, salary, department_id, hire_date)
+                            ) PARTITION by HASH (agea) partitions 3; # 分区字段必须出现在键里面
         """
         if self.find_table(table_name):
             if fixed_drop:
@@ -163,24 +176,29 @@ if __name__ == '__main__':
         }
     mysql = SqlUtils(config)
     # 建表
-    d = {'name':'aocf',
-         'age': 23,
-         'w': 175.1,
-         'p': 'fsegsgzsjsfsfasefearfiufhuSHuishyuifgrygubvubv',
-         'timestamp': pd.to_datetime('2023-02-04').timestamp(),
-         'date': pd.to_datetime('2023-02-04'),
-         'good': True,
-         'bit': 1}
+    # d = {'name':'aocf',
+    #      'age': 23,
+    #      'w': 175.1,
+    #      'p': 'fsegsgzsjsfsfasefearfiufhuSHuishyuifgrygubvubv',
+    #      'timestamp': pd.to_datetime('2023-02-04').timestamp(),
+    #      'date': pd.to_datetime('2023-02-04'),
+    #      'good': True,
+    #      'bit': 1}
+    d = {'title': '十六部好看的国产2D动漫熬夜也要看完哪一个才是你心中的第一', 'url': 'https://www.bilibili.com/video/BV1Ku4y1d7Ex?from=search', 'states': 1, 'save_path': r'download\\十六部好看的国产2D动漫熬夜也要看完哪一个才是你心中的第一.mp4', 'storage': 24895.251953125, 'fps': 30.0, 'resolution': '(1920, 1080)', 'duration': 60.56}
     df = pd.DataFrame(d, index=[0])
+    mysql.creat_table(table_name='bilicrawl',
+                      df=df,
+                      text_col=['title', 'url', 'save_path'],fixed_drop=True)
+
     # mysql.creat_table(table_name='test',
     #                   df=df,
     #                   text_col=['p'], pkeys=['name', 'bit'], ukeys=['good', 'bit'],
     #                   idxs=['w', 'timestamp'], pid='bit')
     # 写入
-    # mysql.put_data(df, 'test', mode='append')
+    mysql.put_data(df, 'bilicrawl', mode='append')
     # 查询
-    ddf = mysql.get_data('select * from test')
-    print(ddf)
+    # ddf = mysql.get_data('select * from test')
+    # print(ddf)
     # 删除
 
     del mysql
